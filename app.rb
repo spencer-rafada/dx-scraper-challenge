@@ -2,6 +2,7 @@ require 'dotenv/load'
 require_relative 'db/setup'
 require_relative 'lib/github/importer'
 require_relative 'lib/models/repository'
+require_relative 'lib/models/pull_request'
 
 importer = GitHub::Importer.new
 
@@ -43,7 +44,23 @@ puts "Merged: #{pr_details.merged_at}"
 puts "Additions: #{pr_details.additions}"
 puts "Deletions: #{pr_details.deletions}"
 puts "Changed Files: #{pr_details.changed_files}"
-# puts "Commits: #{pr_details.commits}" # Commits
+# puts "Commits: #{pr_details.commits.count}"
+
+pull_request = PullRequest.find_or_initialize_by(number: pr_details.number)
+pull_request.update(
+  number: pr_details.number,
+  title: pr_details.title,
+  url: pr_details.html_url,
+  author: pr_details.user.login,
+  pr_updated_at: pr_details.updated_at,
+  closed_at: pr_details.closed_at,
+  merged_at: pr_details.merged_at,
+  additions: pr_details.additions,
+  deletions: pr_details.deletions,
+  changed_files: pr_details.changed_files,
+  repository_id: Repository.find_by(name: 'vercel/next.js').id,
+  # commits: pr_details.commits.count
+)
 
 puts "Fetching reviews for PR ##{pr_details.number}..."
 reviews = importer.fetch_pull_request_reviews('vercel/next.js', pr_details.number)
