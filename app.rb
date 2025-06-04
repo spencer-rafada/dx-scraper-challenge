@@ -1,5 +1,7 @@
 require 'dotenv/load'
+require_relative 'db/setup'
 require_relative 'lib/github/importer'
+require_relative 'lib/models/repository'
 
 importer = GitHub::Importer.new
 
@@ -13,10 +15,13 @@ puts "Found #{repos.count} repos for #{org}"
 repos.each do |repo|
   puts "#{repo.full_name} - #{repo.html_url}"
 
-  # puts "Fetching pull requests for #{repo.full_name}..."
-  # pull_requests = importer.fetch_pull_requests(org, repo.full_name)
-
-  # puts "Found #{pull_requests.count} pull requests for #{repo.full_name}"
+  repository = Repository.find_or_initialize_by(name: repo.full_name)
+  repository.update(
+    name: repo.full_name,
+    url: repo.html_url,
+    private: repo.private,
+    archived: repo.archived
+  )
 end
 
 puts "Fetching pull request for Next.js repo..."
