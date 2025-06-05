@@ -4,6 +4,7 @@ require_relative 'lib/github/importer'
 require_relative 'lib/models/repository'
 require_relative 'lib/models/pull_request'
 require_relative 'lib/models/review'
+require_relative 'lib/models/user'
 
 importer = GitHub::Importer.new
 org = 'vercel'
@@ -38,10 +39,11 @@ repos.each do |repo_data|
       
       # Create or update pull request
       pull_request = PullRequest.find_or_initialize_by(number: pr_details.number, repository_id: repository.id)
+      author = User.find_or_create_by(username: pr_details.user.login) if pr_details.user
       pull_request.update(
         title: pr_details.title,
         url: pr_details.html_url,
-        author: pr_details.user&.login,
+        author: author,
         pr_updated_at: pr_details.updated_at,
         closed_at: pr_details.closed_at,
         merged_at: pr_details.merged_at,
@@ -57,9 +59,12 @@ repos.each do |repo_data|
       reviews = importer.fetch_pull_request_reviews(repo_data.full_name, pr_details.number)
       
       reviews.each do |review_data|
+        next unless review_data.user
+
+        reviewer = User.find_or_create_by(username: review_data.user.login)
         review = Review.find_or_initialize_by(
           pull_request_id: pull_request.id,
-          reviewer: review_data.user&.login
+          reviewer_id: reviewer.id
         )
         review.update(
           state: review_data.state,
