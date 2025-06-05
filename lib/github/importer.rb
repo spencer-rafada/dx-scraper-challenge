@@ -6,8 +6,8 @@ module GitHub
       @client = Client.connection
     end
 
-    def fetch_repos(org, limit: 5)
-      @client.org_repos(org, per_page: limit)
+    def fetch_repos(org, type: 'public', limit: 5)
+      @client.org_repos(org, type: type, per_page: limit)
     end
 
     def fetch_pull_requests(repo, limit: 5)
