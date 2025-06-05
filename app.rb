@@ -9,9 +9,11 @@ require_relative 'lib/models/user'
 def main(org: nil, repo_limit: 30, pr_limit: 30)
   importer = GitHub::Importer.new
 
-  print "Enter GitHub organization name: (vercel) "
-  org = gets.chomp.strip
-  org = 'vercel' if org.empty?
+  unless org
+    print "Enter GitHub organization name: (vercel) "
+    org = gets.chomp.strip
+    org = 'vercel' if org.empty?
+  end
 
   puts "Fetching repos for #{org}..."
   repos = importer.fetch_repos(org, limit: 30)  # Increased limit to get more repos
@@ -95,5 +97,20 @@ def main(org: nil, repo_limit: 30, pr_limit: 30)
 end
 
 if __FILE__ == $0
-  main(org: ARGV[0], repo_limit: ARGV[1], pr_limit: ARGV[2])
+  org = nil
+  repo_limit = 30
+  pr_limit = 30
+
+  ARGV.each_slice(2) do |arg, value|
+    case arg
+    when '-o', '--org'
+      org = value
+    when '-rl', '--repo-limit'
+      repo_limit = value.to_i
+    when '-prl', '--pr-limit'
+      pr_limit = value.to_i
+    end
+  end
+
+  main(org: org, repo_limit: repo_limit, pr_limit: pr_limit)
 end
