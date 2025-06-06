@@ -13,24 +13,23 @@ module GitHub
       begin
         yield
       rescue Octokit::TooManyRequests => e
-        reset_time = @client.rate_limit.resets_at
-        wait_time = [(reset_time - Time.now).to_i, 60].max
-        message = "Rate limited. Waiting for #{wait_time} seconds..."
-        puts "🟠 [WARN] #{message}"
+        reset_time = @client.rate_limit.resets_in
+        message = "Rate limited. Rate limit resets in #{reset_time} seconds. Retrying in 10 seconds..."
         AppLogger.warn(message, exception: e, source: 'github_importer')
-        sleep(wait_time)
+        puts "🟠 [WARN] #{message}"
+        sleep(reset_time)
         attempts += 1
         retry if attempts < @max_retries
         fallback
       rescue Octokit::NotFound => e
         message = "Resource not found: #{e.message}"
-        puts "🔴 [ERROR] #{message}"
         AppLogger.error(message, exception: e, source: 'github_importer')
+        puts "🔴 [ERROR] #{message}"
         fallback
       rescue StandardError => e
         message = "Unexpected error: #{e.message}"
-        puts "🔴 [ERROR] #{message}"
         AppLogger.error(message, exception: e, source: 'github_importer')
+        puts "🔴 [ERROR] #{message}"
         fallback
       end
     end

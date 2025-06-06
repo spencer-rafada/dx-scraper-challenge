@@ -16,34 +16,26 @@ def main(org: nil, repo_limit: 30, pr_limit: 30, max_retries: 3)
     org = 'vercel' if org.empty?
   end
 
-  repos = []
   begin
     repos = importer.fetch_repos(org, limit: repo_limit)
-  rescue => e
-    AppLogger.error(message: "Failed to fetch repos for #{org}", exception: e)
-    puts "❌ Failed to fetch repos for #{org}. See logs."
-    return
-  end
+    puts "📦 Found #{repos.count} repos for #{org}"
 
-  puts "📦 Found #{repos.count} repos for #{org}"
+    repos.each do |repo_data|
+      begin
+        repository = Repository.find_or_initialize_by(name: repo_data.full_name)
+        repository.update(
+          name: repo_data.full_name,
+          url: repo_data.html_url,
+          private: repo_data.private,
+          archived: repo_data.archived
+        )
 
-  repos.each do |repo_data|
-    begin
-      repository = Repository.find_or_initialize_by(name: repo_data.full_name)
-      repository.update(
-        name: repo_data.full_name,
-        url: repo_data.html_url,
-        private: repo_data.private,
-        archived: repo_data.archived
-      )
+        puts "\n📁 Processing repository: #{repo_data.full_name}"
+        pull_requests = importer.fetch_pull_requests(repo_data.full_name, limit: pr_limit)
 
-      puts "\n📁 Processing repository: #{repo_data.full_name}"
-
-      pull_requests = importer.fetch_pull_requests(repo_data.full_name, limit: pr_limit)
-
-      pull_requests.each do |pr_data|
-        begin
+        pull_requests.each do |pr_data|
           pr_details = importer.fetch_pull_request_details(repo_data.full_name, pr_data.number)
+          next unless pr_details  # Skip if PR details couldn't be fetched
 
           pull_request = PullRequest.find_or_initialize_by(number: pr_details.number, repository_id: repository.id)
           author = User.find_or_create_by(username: pr_details.user.login) if pr_details.user
@@ -63,7 +55,7 @@ def main(org: nil, repo_limit: 30, pr_limit: 30, max_retries: 3)
 
           reviews = importer.fetch_pull_request_reviews(repo_data.full_name, pr_details.number)
           reviews.each do |review_data|
-            next unless review_data.user
+            next unless review_data&.user
 
             reviewer = User.find_or_create_by(username: review_data.user.login)
             review = Review.find_or_initialize_by(
@@ -77,22 +69,20 @@ def main(org: nil, repo_limit: 30, pr_limit: 30, max_retries: 3)
           end
 
           puts "✅ Processed PR ##{pr_details.number}: #{pr_details.title} (#{reviews.count} reviews)"
-
-        rescue => e
-          AppLogger.error(message: "Failed processing PR ##{pr_data.number} in #{repo_data.full_name}", exception: e)
-          puts "⚠️ Skipped PR ##{pr_data.number} due to error. See logs."
-          next
         end
+      rescue => e
+        puts "⚠️  Warning: Error processing repository #{repo_data&.full_name || 'unknown'}: #{e.message}"
+        AppLogger.error("Error processing repository", exception: e, source: 'app')
+        next
       end
-
-    rescue => e
-      AppLogger.error(message: "Failed processing repository #{repo_data.full_name}", exception: e)
-      puts "⚠️ Skipped repo #{repo_data.full_name} due to error. See logs."
-      next
     end
-  end
 
-  puts "\n🎉 Done processing all repositories!"
+    puts "\n🎉 Done processing all repositories!"
+  rescue => e
+    puts "❌ Fatal error: #{e.message}"
+    AppLogger.error("Fatal error in main process", exception: e, source: 'app')
+    exit 1
+  end
 end
 
 if __FILE__ == $0
