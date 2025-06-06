@@ -1,0 +1,42 @@
+name: Triggered Scrape
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: 'GitHub organization name'
+        required: false
+        default: 'vercel'
+      repo_limit:
+        description: 'Number of repositories to fetch'
+        required: false
+        default: '30'
+      pr_limit:
+        description: 'Number of pull requests to fetch per repository'
+        required: false
+        default: '30'
+      max_retries:
+        description: 'Maximum number of retries for failed requests'
+        required: false
+        default: '3'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.0'
+      - name: Install dependencies
+        run: bundle install
+      - name: Setup database
+        run: bundle exec rake db:migrate
+      - name: Run scraper
+        run: bundle exec ruby app.rb --org ${{ inputs.org }} --repo-limit ${{ inputs.repo_limit }} --pr-limit ${{ inputs.pr_limit }} --max-retries ${{ inputs.max_retries }}
