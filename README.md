@@ -1,39 +1,134 @@
-# GitHub Scraper Challenge
+# GitHub Scraper
 
-## Objective
+A Ruby application that scrapes GitHub data from the Vercel organization, including repositories, pull requests, reviews, and user information.
 
-Build a scaper in Ruby of Github data. Use ActiveRecord for writing data into the database.
+## Features
 
-## Requirements
+- Fetches all public repositories from the Vercel organization
+- Retrieves pull requests for each repository
+- Collects reviews for each pull request
+- Tracks GitHub users who opened PRs or submitted reviews
+- Handles GitHub API rate limiting
+- Logs errors for debugging and monitoring
+- Uses ActiveRecord for database operations
 
-For all repositories in the Vercel organization, retrieve the following data:
+## Prerequisites
 
-- All public repositories for Vercel
-- All pull requests for each repository
-- All reviews for each pull request
-- All github users who opened a pull request in a Vercel repo or did a review on one of the PRs
+- Ruby
+- Bundler
+- SQLite3
+- GitHub Personal Access Token with appropriate permissions (if not provided, rate limiting will be applied)
 
-## Bonus
+## Installation
 
-Not a requirement, but bonus if you can make it so your importer can handle rate limiting or any other errors it may encounter.
+1. Clone the repository:
 
-## Data points to store
-- Name of repository
-- URL to the repository
-- Whether a repo is private or not
-- Whether a repo is archived or not
-- PR number
-- PR title
-- PR updated time
-- PR closed time
-- PR merged time
-- PR author
-- PR additions
-- PR deletions
-- PR changed files
-- PR number of commits
-- Who authored a review
-- State of the review
-- When the review was submitted
-- User's github login
+   ```bash
+   git clone <repository-url>
+   cd dx-scraper-challenge
+   ```
 
+2. Install dependencies:
+
+   ```bash
+   bundle install
+   ```
+
+3. Set up your database:
+
+   ```bash
+   rake db:migrate
+   ```
+
+4. Configure environment variables:
+   Create a `.env` file in the root directory and grab the example `.env.example` file and copy it to `.env`
+
+## Database Schema
+
+The application uses the following database tables:
+
+- `repositories`: Stores repository information
+- `pull_requests`: Stores pull request data
+- `reviews`: Stores code review information
+- `users`: Tracks GitHub users
+- `logs`: Stores any logs (errors, warnings, and info) that occur during scraping
+
+## Usage
+
+Run the main importer:
+
+```bash
+ruby app.rb
+```
+
+This will:
+
+1. Fetch all public repositories from the Vercel organization (or any other organization you specify)
+2. For each repository, fetch all pull requests
+3. For each pull request, fetch all reviews
+4. Store all users who opened PRs or submitted reviews
+
+## Configuration
+
+You can configure the following CLI arguments or flags:
+
+- `--org` or `-o`: GitHub organization name (default: "vercel")
+- `--repo-limit` or `-rl`: Number of repositories to fetch (default: 30)
+- `--pr-limit` or `-prl`: Number of pull requests to fetch per repository (default: 30)
+- `--max-retries` or `-mr`: Maximum number of retries for failed requests (default: 3)
+
+## Error Handling
+
+The application includes comprehensive error handling and logging:
+
+- Rate limiting is automatically handled with max retries and prompt user to proceed or exit
+- All logs (errors, warnings, and info) are logged to the `logs` table
+- The scraper can be safely interrupted and resumed
+
+## Data Model
+
+### Repository
+
+- id: Integer
+- name: String
+- url: String
+- private: Boolean
+- archived: Boolean
+- created_at: DateTime
+- updated_at: DateTime
+
+### Pull Request
+
+- id: Integer
+- number: Integer
+- title: String
+- url: String
+- additions: Integer
+- deletions: Integer
+- changed_files: Integer
+- commits: Integer
+- created_at: DateTime
+- pr_updated_at: DateTime
+- closed_at: DateTime
+- merged_at: DateTime
+- repository_id: ForeignKey
+- author_id: ForeignKey
+- updated_at: DateTime
+
+### Review
+
+- id: Integer
+- state: String
+- submitted_at: DateTime
+- pull_request_id: ForeignKey
+- reviewer_id: ForeignKey
+- created_at: DateTime
+- updated_at: DateTime
+
+### User
+
+- id: Integer
+- username: String
+- avatar_url: String
+- created_at: DateTime
+- updated_at: DateTime
