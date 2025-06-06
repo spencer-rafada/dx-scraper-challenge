@@ -19,24 +19,61 @@ on:
         description: 'Maximum number of retries for failed requests'
         required: false
         default: '3'
+      thread_count:
+        description: 'Number of threads to use for processing'
+        required: false
+        default: '4'
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     env:
       GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+      PG_DATABASE: github_scraper_test
+      PG_USERNAME: ${{ secrets.PG_USERNAME }}
+      PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+      PG_HOST: localhost
+      PG_PORT: 5432
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Set up Ruby
+
+      - name: Install Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.0'
+
+      - name: Install PostgreSQL
+        run: |
+          brew install postgresql@15
+          echo "$(brew --prefix)/opt/postgresql@15/bin" >> $GITHUB_PATH
+          echo "$(brew --prefix)/opt/libpq/bin" >> $GITHUB_PATH
+          echo "LDFLAGS=-L$(brew --prefix)/opt/postgresql@15/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix)/opt/postgresql@15/include" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(brew --prefix)/opt/postgresql@15/lib/pkgconfig" >> $GITHUB_ENV
+          brew services start postgresql@15
+          psql postgres -c "CREATE USER ${{ secrets.PG_USERNAME || 'postgres' }} WITH PASSWORD '${{ secrets.PG_PASSWORD || 'postgres' }}';"
+          psql postgres -c "ALTER USER ${{ secrets.PG_USERNAME || 'postgres' }} CREATEDB;"
+          createdb -U ${{ secrets.PG_USERNAME || 'postgres' }} github_scraper_test
+
       - name: Install dependencies
-        run: bundle install
+        run: |
+          bundle config build.pg --with-pg-config=$(brew --prefix)/opt/libpq/bin/pg_config
+          bundle install
+
       - name: Setup database
-        run: bundle exec rake db:migrate
+        run: |
+          bundle exec rake db:drop
+          bundle exec rake db:create
+          bundle exec rake db:migrate
+
       - name: Run scraper
-        run: bundle exec ruby app.rb --org ${{ inputs.org }} --repo-limit ${{ inputs.repo_limit }} --pr-limit ${{ inputs.pr_limit }} --max-retries ${{ inputs.max_retries }}
+        run: |
+          bundle exec ruby app.rb \
+            --org ${{ inputs.org }} \
+            --repo-limit ${{ inputs.repo_limit }} \
+            --pr-limit ${{ inputs.pr_limit }} \
+            --max-retries ${{ inputs.max_retries }} \
+            --threads ${{ inputs.thread_count }}
