@@ -12,13 +12,13 @@ A Ruby application that scrapes GitHub data from the Vercel organization, includ
 - Tracks GitHub users who opened PRs or submitted reviews
 - Handles GitHub API rate limiting
 - Logs errors for debugging and monitoring
-- Uses ActiveRecord for database operations
+- Uses PostgreSQL with ActiveRecord for concurrent database operations
 
 ## Prerequisites
 
 - Ruby
+- PostgreSQL
 - Bundler
-- SQLite3
 - GitHub Personal Access Token with appropriate permissions (if not provided, rate limiting will be applied)
 
 ## Installation
@@ -30,22 +30,50 @@ A Ruby application that scrapes GitHub data from the Vercel organization, includ
    cd dx-scraper-challenge
    ```
 
-2. Install dependencies:
+2. Install system dependencies (macOS):
+
+   ```bash
+   brew install postgresql
+   ```
+
+3. Install Ruby dependencies:
 
    ```bash
    bundle install
    ```
 
-3. Set up your database:
+4. Set up PostgreSQL:
+
+   - Make sure PostgreSQL is running
+   - Create a database user (if needed):
+     ```bash
+     createuser --superuser $USER
+     ```
+   - Create the development database:
+     ```bash
+     createdb dx_scraper_development
+     ```
+
+5. Configure environment variables:
 
    ```bash
-   rake db:migrate
+   cp .env.example .env
    ```
 
-4. Configure environment variables:
-   Create a `.env` file in the root directory and grab the example `.env.example` file and copy it to `.env`
+   Then edit `.env` and set your GitHub token and database credentials.
 
-## Database Schema
+6. Set up the database:
+   ```bash
+   bundle exec rake db:migrate
+   ```
+
+## Database Management
+
+- Create the database: `rake db:create`
+- Run migrations: `rake db:migrate`
+- Reset the database: `rake db:reset` (drops, recreates, and migrates)
+
+## Database Schema and Model
 
 The application uses the following database tables:
 
@@ -89,50 +117,31 @@ The application includes comprehensive error handling and logging:
 - All logs (errors, warnings, and info) are logged to the `logs` table
 - The scraper can be safely interrupted and resumed
 
-## Data Model
+## Concurrency
 
-### Repository
+This application is designed to work with PostgreSQL's concurrency features:
 
-- id: Integer
-- name: String
-- url: String
-- private: Boolean
-- archived: Boolean
-- created_at: DateTime
-- updated_at: DateTime
+- Uses thread pooling for parallel processing of repositories
+- Implements proper connection pooling with ActiveRecord
+- Uses database transactions to ensure data consistency
+- Handles concurrent database operations safely
 
-### Pull Request
+## GitHub Actions
 
-- id: Integer
-- number: Integer
-- title: String
-- url: String
-- additions: Integer
-- deletions: Integer
-- changed_files: Integer
-- commits: Integer
-- created_at: DateTime
-- pr_updated_at: DateTime
-- closed_at: DateTime
-- merged_at: DateTime
-- repository_id: ForeignKey
-- author_id: ForeignKey
-- updated_at: DateTime
+This project includes a GitHub Actions workflow that runs the scraper with PostgreSQL. The workflow:
 
-### Review
+1. Sets up a PostgreSQL service
+2. Installs required system dependencies
+3. Sets up Ruby and installs gems
+4. Creates and migrates the database
+5. Runs the scraper with configurable parameters
 
-- id: Integer
-- state: String
-- submitted_at: DateTime
-- pull_request_id: ForeignKey
-- reviewer_id: ForeignKey
-- created_at: DateTime
-- updated_at: DateTime
+### Manual Trigger
 
-### User
+You can manually trigger the workflow from the Actions tab with these parameters:
 
-- id: Integer
-- username: String
-- avatar_url: String
-- created_at: DateTime
-- updated_at: DateTime
+- `org`: GitHub organization name (default: 'vercel')
+- `repo_limit`: Number of repositories to fetch (default: 30)
+- `pr_limit`: Number of pull requests to fetch per repository (default: 30)
+- `max_retries`: Maximum number of retries for failed requests (default: 3)
+- `thread_count`: Number of threads to use for processing (default: 4)

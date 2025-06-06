@@ -19,24 +19,68 @@ on:
         description: 'Maximum number of retries for failed requests'
         required: false
         default: '3'
+      thread_count:
+        description: 'Number of threads to use for processing'
+        required: false
+        default: '4'
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: github_scraper_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
       GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+      PG_DATABASE: github_scraper_test
+      PG_USERNAME: postgres
+      PG_PASSWORD: postgres
+      PG_HOST: localhost
+      PG_PORT: 5432
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.0'
+
+      - name: Install PostgreSQL
+        run: |
+          brew install postgresql@15
+          brew services start postgresql@15
+          until pg_isready -h localhost -p 5432; do sleep 1; done
+          createdb github_scraper_test
+
       - name: Install dependencies
         run: bundle install
+
       - name: Setup database
-        run: bundle exec rake db:migrate
+        run: |
+          bundle exec rake db:drop
+          bundle exec rake db:create
+          bundle exec rake db:migrate
+
       - name: Run scraper
-        run: bundle exec ruby app.rb --org ${{ inputs.org }} --repo-limit ${{ inputs.repo_limit }} --pr-limit ${{ inputs.pr_limit }} --max-retries ${{ inputs.max_retries }}
+        run: |
+          bundle exec ruby app.rb \
+            --org ${{ inputs.org }} \
+            --repo-limit ${{ inputs.repo_limit }} \
+            --pr-limit ${{ inputs.pr_limit }} \
+            --max-retries ${{ inputs.max_retries }} \
+            --threads ${{ inputs.thread_count }}
