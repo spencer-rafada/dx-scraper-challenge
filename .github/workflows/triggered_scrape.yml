@@ -28,21 +28,6 @@ jobs:
   scrape:
     runs-on: macos-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: ${{ secrets.PG_USERNAME }}
-          POSTGRES_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          POSTGRES_DB: github_scraper_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
       PG_DATABASE: github_scraper_test
@@ -52,16 +37,13 @@ jobs:
       PG_PORT: 5432
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Ruby
-        run: |
-          brew install ruby
-          echo "$(brew --prefix)/opt/ruby/bin" >> $GITHUB_PATH
-          echo "GEM_HOME=$(ruby -e 'puts Gem.user_dir')" >> $GITHUB_ENV
-          echo "$GEM_HOME/bin" >> $GITHUB_PATH
-          gem install bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.0'
 
       - name: Install PostgreSQL
         run: |
