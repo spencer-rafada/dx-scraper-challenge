@@ -4,7 +4,7 @@ A Ruby application that scrapes GitHub data from the Vercel organization, includ
 
 ## Features
 
-- Fetches all public repositories from the Vercel organization
+- Fetches all public repositories from the Vercel organization (or any other organization you specify)
 - Retrieves pull requests for each repository
 - Collects reviews for each pull request
 - Tracks GitHub users who opened PRs or submitted reviews

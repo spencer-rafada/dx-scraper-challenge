@@ -22,9 +22,8 @@ def main(org: nil, repo_limit: 30, pr_limit: 30, max_retries: 3)
 
     repos.each do |repo_data|
       begin
-        repository = Repository.find_or_initialize_by(name: repo_data.full_name)
+        repository = Repository.find_or_initialize_by(org: org, repo_name: repo_data.name)
         repository.update(
-          name: repo_data.full_name,
           url: repo_data.html_url,
           private: repo_data.private,
           archived: repo_data.archived
