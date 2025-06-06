@@ -55,10 +55,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: actions/setup-ruby@v1
-        with:
-          ruby-version: '3.3.0'
+      - name: Install Ruby
+        run: |
+          brew install ruby
+          echo "$(brew --prefix)/opt/ruby/bin" >> $GITHUB_PATH
+          echo "GEM_HOME=$(ruby -e 'puts Gem.user_dir')" >> $GITHUB_ENV
+          echo "$GEM_HOME/bin" >> $GITHUB_PATH
+          gem install bundler
 
       - name: Install PostgreSQL
         run: |
