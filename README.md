@@ -1,6 +1,8 @@
-# GitHub Scraper
+# DX GitHub Scraper Challenge
 
 A Ruby application that scrapes GitHub data from the Vercel organization, including repositories, pull requests, reviews, and user information.
+
+**Submitted by: [spencer-rafada](https://github.com/spencer-rafada)**
 
 ## Features
 
@@ -24,7 +26,7 @@ A Ruby application that scrapes GitHub data from the Vercel organization, includ
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/spencer-rafada/dx-scraper-challenge
    cd dx-scraper-challenge
    ```
 
