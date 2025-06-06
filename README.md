@@ -55,6 +55,8 @@ The application uses the following database tables:
 - `users`: Tracks GitHub users
 - `logs`: Stores any logs (errors, warnings, and info) that occur during scraping
 
+![Database Schema](/public/db_schema.png)
+
 ## Usage
 
 Run the main importer:
