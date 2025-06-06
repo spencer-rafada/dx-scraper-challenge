@@ -48,7 +48,10 @@ jobs:
       - name: Install PostgreSQL
         run: |
           brew install postgresql@15
+          echo "$(brew --prefix)/opt/postgresql@15/bin" >> $GITHUB_PATH
+          echo "$(brew --prefix)/opt/libpq/bin" >> $GITHUB_PATH
           brew services start postgresql@15
+          until pg_isready -h localhost -p 5432; do sleep 1; done
           psql postgres -c "CREATE USER ${{ secrets.PG_USERNAME || 'postgres' }} WITH PASSWORD '${{ secrets.PG_PASSWORD || 'postgres' }}';"
           psql postgres -c "ALTER USER ${{ secrets.PG_USERNAME || 'postgres' }} CREATEDB;"
           createdb -U ${{ secrets.PG_USERNAME || 'postgres' }} github_scraper_test
