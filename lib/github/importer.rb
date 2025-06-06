@@ -14,10 +14,16 @@ module GitHub
         yield
       rescue Octokit::TooManyRequests => e
         reset_time = @client.rate_limit.resets_in
-        message = "Rate limited. Rate limit resets in #{reset_time} seconds. Retrying in 10 seconds..."
+        message = "Rate limited. Rate limit resets in #{reset_time} seconds."
         AppLogger.warn(message, exception: e, source: 'github_importer')
-        puts "🟠 [WARN] #{message}"
-        sleep(reset_time)
+        
+        if attempts.zero? && !continue_after_rate_limit?(message, reset_time)
+          puts "\n🛑 Operation cancelled by user."
+          exit(0)
+        end
+        
+        puts "🟠 [WARN] #{message} Retrying in 10 seconds..."
+        sleep([reset_time, 10].min)  # Sleep for the smaller of reset_time or 10 seconds
         attempts += 1
         retry if attempts < @max_retries
         fallback
@@ -54,5 +60,33 @@ module GitHub
       fetch_with_retries(fallback: []) { @client.pull_request_reviews(repo, pull_request_number) }
     end
 
+    private
+
+    def continue_after_rate_limit?(message, wait_time)
+      puts "\n🟠 [WARN] #{message}"
+      
+      return true unless $stdin.tty?
+      
+      begin
+        Timeout.timeout(60) do
+          loop do
+            print "Do you want to wait and continue? (Y/n) "
+            response = $stdin.gets&.chomp&.downcase
+            
+            case response
+            when '', 'y', 'yes'
+              return true
+            when 'n', 'no', 'q', 'quit', 'exit'
+              return false
+            else
+              puts "Please enter 'y' to continue or 'n' to exit"
+            end
+          end
+        end
+      rescue Timeout::Error
+        puts "\nNo response received, continuing with operation..."
+        return true
+      end
+    end
   end
 end
