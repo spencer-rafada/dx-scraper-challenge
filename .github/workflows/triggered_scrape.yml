@@ -50,7 +50,6 @@ jobs:
           brew install postgresql@15
           brew install libpq
           brew services start postgresql@15
-          createdb github_scraper_test
 
       - name: Install dependencies
         run: bundle install
