@@ -23,22 +23,28 @@ def main(org: nil, repo_limit: 30, pr_limit: 30, max_retries: 3)
     repos.each do |repo_data|
       begin
         repository = Repository.find_or_initialize_by(org: org, repo_name: repo_data.name)
-        repository.update(
+        repository.assign_attributes(
           url: repo_data.html_url,
           private: repo_data.private,
           archived: repo_data.archived
         )
+        repository.save if repository.changed?
 
         puts "\n📁 Processing repository: #{repo_data.full_name}"
         pull_requests = importer.fetch_pull_requests(repo_data.full_name, limit: pr_limit)
 
+        user_cache = {}
+
         pull_requests.each do |pr_data|
           pr_details = importer.fetch_pull_request_details(repo_data.full_name, pr_data.number)
-          next unless pr_details  # Skip if PR details couldn't be fetched
+          next unless pr_details
 
           pull_request = PullRequest.find_or_initialize_by(number: pr_details.number, repository_id: repository.id)
-          author = User.find_or_create_by(username: pr_details.user.login) if pr_details.user
-          pull_request.update(
+
+          author_login = pr_details.user&.login
+          author = user_cache[author_login] ||= User.find_or_create_by(username: author_login) if author_login
+
+          pull_request.assign_attributes(
             title: pr_details.title,
             url: pr_details.html_url,
             author: author,
@@ -51,20 +57,24 @@ def main(org: nil, repo_limit: 30, pr_limit: 30, max_retries: 3)
             commits: pr_details.commits,
             repository_id: repository.id
           )
+          pull_request.save if pull_request.changed?
 
           reviews = importer.fetch_pull_request_reviews(repo_data.full_name, pr_details.number)
           reviews.each do |review_data|
             next unless review_data&.user
+            reviewer_login = review_data.user.login
 
-            reviewer = User.find_or_create_by(username: review_data.user.login)
+            reviewer = user_cache[reviewer_login] ||= User.find_or_create_by(username: reviewer_login)
+
             review = Review.find_or_initialize_by(
               pull_request_id: pull_request.id,
               reviewer_id: reviewer.id
             )
-            review.update(
+            review.assign_attributes(
               state: review_data.state,
               submitted_at: review_data.submitted_at
             )
+            review.save if review.changed?
           end
 
           puts "✅ Processed PR ##{pr_details.number}: #{pr_details.title} (#{reviews.count} reviews)"
