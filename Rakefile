@@ -30,4 +30,19 @@ namespace :db do
 
     puts "Created migration: #{file_path}"
   end
+
+  desc 'Drop the database'
+  task :drop => :environment do
+    config = ActiveRecord::Base.connection_db_config
+    `psql -U #{config.configuration_hash[:username]} -c "DROP DATABASE IF EXISTS #{config.database};"`
+  end
+
+  desc 'Create the database'
+  task :create => :environment do
+    config = ActiveRecord::Base.connection_db_config
+    `psql -U #{config.configuration_hash[:username]} -c "CREATE DATABASE #{config.database};"`
+  end
+
+  desc 'Reset the database'
+  task reset: [:drop, :create, :migrate]
 end

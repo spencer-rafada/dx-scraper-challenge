@@ -1,12 +1,17 @@
 require 'active_record'
-require 'fileutils'
-
-FileUtils.mkdir_p('db')
+require 'dotenv/load'
+require 'pg'
 
 ActiveRecord::Base.establish_connection(
-  adapter: 'sqlite3',
-  database: 'db/development.sqlite3'
+  adapter:  'postgresql',
+  encoding: 'unicode',
+  database: ENV.fetch('PG_DATABASE'),
+  username: ENV.fetch('PG_USERNAME'),
+  password: ENV['PG_PASSWORD'],  
+  host:     ENV.fetch('PG_HOST', 'localhost'),
+  port:     ENV.fetch('PG_PORT', '5432')
 )
 
-# Load all models
-Dir[File.join(__dir__, '../lib/models', '*.rb')].each { |file| require file }
+
+# Load models
+Dir[File.join(__dir__, '../lib/models', '*.rb')].each { |f| require f }
